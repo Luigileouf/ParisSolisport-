@@ -1,0 +1,702 @@
+openapi: 3.0.3
+info:
+  title: Insolite Points API
+  version: 0.1.0
+  description: >
+    API MVP pour jeu de pronostics sportifs insolites sans argent reel.
+servers:
+  - url: http://localhost:3000/api/v1
+paths:
+  /health:
+    get:
+      summary: Health check
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: true
+
+  /auth/login:
+    post:
+      summary: Login and get JWT access token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Login success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /me:
+    get:
+      summary: Current user profile
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: User profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MeResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /me/ledger:
+    get:
+      summary: Current user ledger
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        "200":
+          description: Ledger entries
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/LedgerItem"
+
+  /me/bets:
+    get:
+      summary: Current user bets
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [PLACED, WIN, LOSS, VOID]
+      responses:
+        "200":
+          description: User bets
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Bet"
+
+  /markets:
+    get:
+      summary: List markets
+      parameters:
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [DRAFT, OPEN, LOCKED, SETTLED, CANCELED]
+      responses:
+        "200":
+          description: List of markets
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Market"
+
+  /markets/{marketId}:
+    get:
+      summary: Market details
+      parameters:
+        - in: path
+          name: marketId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Market details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Market"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /bets:
+    post:
+      summary: Place bet
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PlaceBetRequest"
+      responses:
+        "201":
+          description: Bet created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlaceBetResponse"
+        "200":
+          description: Idempotent replay
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlaceBetResponse"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+
+  /rewards:
+    get:
+      summary: List active partner rewards
+      responses:
+        "200":
+          description: Active rewards
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Reward"
+
+  /rewards/{rewardId}/redeem:
+    post:
+      summary: Redeem reward with points
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: rewardId
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - in: header
+          name: Idempotency-Key
+          required: true
+          schema:
+            type: string
+      responses:
+        "201":
+          description: Redemption created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RedeemResponse"
+        "200":
+          description: Idempotent replay
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RedeemResponse"
+        "409":
+          description: Out of stock or inactive
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+
+  /ads/reward-callback:
+    post:
+      summary: Ad network callback to credit points
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdRewardCallbackRequest"
+      responses:
+        "200":
+          description: Callback accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdRewardCallbackResponse"
+        "429":
+          description: Daily cap reached
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+  /admin/markets:
+    post:
+      summary: Create market
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateMarketRequest"
+      responses:
+        "201":
+          description: Market created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Market"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /admin/markets/{marketId}/status:
+    patch:
+      summary: Change market status
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: marketId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status:
+                  type: string
+                  enum: [OPEN, LOCKED, CANCELED]
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  marketId:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /admin/markets/{marketId}/settle:
+    post:
+      summary: Settle market
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: marketId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [winnerOptionId]
+              properties:
+                winnerOptionId:
+                  type: string
+                  format: uuid
+                proofUrl:
+                  type: string
+                note:
+                  type: string
+      responses:
+        "200":
+          description: Settlement done
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SettleMarketResponse"
+
+  /admin/rewards:
+    post:
+      summary: Create partner reward
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [partnerName, title, pointsCost]
+              properties:
+                partnerName:
+                  type: string
+                title:
+                  type: string
+                description:
+                  type: string
+                pointsCost:
+                  type: integer
+                stock:
+                  type: integer
+                isActive:
+                  type: boolean
+      responses:
+        "201":
+          description: Reward created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Reward"
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  responses:
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+    Forbidden:
+      description: Forbidden
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+    NotFound:
+      description: Not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+    UnprocessableEntity:
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+  schemas:
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+    LoginResponse:
+      type: object
+      properties:
+        accessToken:
+          type: string
+        tokenType:
+          type: string
+          example: Bearer
+        expiresIn:
+          type: string
+          example: 1h
+        user:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            email:
+              type: string
+            displayName:
+              type: string
+            role:
+              type: string
+              enum: [player, admin]
+    ErrorEnvelope:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            requestId:
+              type: string
+            details:
+              nullable: true
+    MeResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+        displayName:
+          type: string
+        pointsBalance:
+          type: integer
+    LedgerItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        entryType:
+          type: string
+        pointsDelta:
+          type: integer
+        balanceAfter:
+          type: integer
+        refType:
+          type: string
+        refId:
+          type: string
+          format: uuid
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+    MarketOption:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        label:
+          type: string
+        oddsDecimal:
+          type: number
+          format: float
+        isWinner:
+          type: boolean
+    Market:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        sport:
+          type: string
+        eventRef:
+          type: string
+          nullable: true
+        openAt:
+          type: string
+          format: date-time
+        closeAt:
+          type: string
+          format: date-time
+        settleAt:
+          type: string
+          format: date-time
+          nullable: true
+        status:
+          type: string
+          enum: [DRAFT, OPEN, LOCKED, SETTLED, CANCELED]
+        options:
+          type: array
+          items:
+            $ref: "#/components/schemas/MarketOption"
+    Bet:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        marketId:
+          type: string
+          format: uuid
+        optionId:
+          type: string
+          format: uuid
+        stakePoints:
+          type: integer
+        oddsDecimal:
+          type: number
+          format: float
+        payoutPoints:
+          type: integer
+        status:
+          type: string
+          enum: [PLACED, WIN, LOSS, VOID]
+        placedAt:
+          type: string
+          format: date-time
+        settledAt:
+          type: string
+          format: date-time
+          nullable: true
+    PlaceBetRequest:
+      type: object
+      required: [marketId, optionId, stakePoints]
+      properties:
+        marketId:
+          type: string
+          format: uuid
+        optionId:
+          type: string
+          format: uuid
+        stakePoints:
+          type: integer
+    PlaceBetResponse:
+      type: object
+      properties:
+        betId:
+          type: string
+          format: uuid
+        status:
+          type: string
+        stakePoints:
+          type: integer
+        oddsDecimal:
+          type: number
+          format: float
+        pointsBalance:
+          type: integer
+    Reward:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        partnerName:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        pointsCost:
+          type: integer
+        stock:
+          type: integer
+        isActive:
+          type: boolean
+    RedeemResponse:
+      type: object
+      properties:
+        redemptionId:
+          type: string
+          format: uuid
+        status:
+          type: string
+        pointsSpent:
+          type: integer
+        code:
+          type: string
+        pointsBalance:
+          type: integer
+    AdRewardCallbackRequest:
+      type: object
+      required: [network, networkEventId, userExternalId, watched, signature]
+      properties:
+        network:
+          type: string
+        networkEventId:
+          type: string
+        userExternalId:
+          type: string
+          format: uuid
+        watched:
+          type: boolean
+        signature:
+          type: string
+        idempotencyKey:
+          type: string
+    AdRewardCallbackResponse:
+      type: object
+      properties:
+        accepted:
+          type: boolean
+        alreadyProcessed:
+          type: boolean
+        pointsGranted:
+          type: integer
+        pointsBalance:
+          type: integer
+    CreateMarketRequest:
+      type: object
+      required: [title, sport, openAt, closeAt, options]
+      properties:
+        title:
+          type: string
+        sport:
+          type: string
+        eventRef:
+          type: string
+        openAt:
+          type: string
+          format: date-time
+        closeAt:
+          type: string
+          format: date-time
+        options:
+          type: array
+          minItems: 2
+          items:
+            type: object
+            required: [label, oddsDecimal]
+            properties:
+              label:
+                type: string
+              oddsDecimal:
+                type: number
+    SettleMarketResponse:
+      type: object
+      properties:
+        marketId:
+          type: string
+          format: uuid
+        winnerOptionId:
+          type: string
+          format: uuid
+        betsProcessed:
+          type: integer
+        winCount:
+          type: integer
+        lossCount:
+          type: integer

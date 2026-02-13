@@ -1,0 +1,85 @@
+name: Backend CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test-and-smoke:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: insolite_points
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d insolite_points"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    defaults:
+      run:
+        working-directory: backend
+
+    env:
+      NODE_ENV: test
+      PORT: 3000
+      LOG_LEVEL: warn
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/insolite_points
+      JWT_SECRET: ci_local_jwt_secret_change_me
+      JWT_EXPIRES_IN: 1h
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Apply migrations
+        run: npm run migrate
+
+      - name: Run tests
+        run: npm test
+
+      - name: Start API
+        run: |
+          nohup npm run start > ../server.log 2>&1 &
+          echo $! > ../server.pid
+
+      - name: Wait for API
+        run: |
+          for i in {1..30}; do
+            if curl -fsS http://localhost:3000/api/v1/health > /dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "API did not become healthy in time."
+          cat ../server.log || true
+          exit 1
+
+      - name: Run smoke test (reset DB, skip ad cap)
+        run: pwsh -NoProfile -ExecutionPolicy Bypass -File ./scripts/smoke-test.ps1 -ResetDb -SkipAdCapTest
+
+      - name: Stop API and print logs
+        if: always()
+        run: |
+          if [ -f ../server.pid ]; then
+            kill "$(cat ../server.pid)" || true
+          fi
+          echo "===== server.log ====="
+          cat ../server.log || true

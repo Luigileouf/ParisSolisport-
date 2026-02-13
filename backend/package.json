@@ -1,0 +1,26 @@
+{
+  "name": "insolite-points-api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "dev": "node --watch src/server.js",
+    "start": "node src/server.js",
+    "migrate": "node src/scripts/migrate.js",
+    "test": "node --test --test-concurrency=1",
+    "test:integration": "node --test --test-concurrency=1 test/integration/*.test.js",
+    "test:e2e": "node --test --test-concurrency=1 test/e2e/*.test.js",
+    "smoke": "powershell -ExecutionPolicy Bypass -File ./scripts/smoke-test.ps1 -SkipAdCapTest",
+    "smoke:reset": "powershell -ExecutionPolicy Bypass -File ./scripts/smoke-test.ps1 -ResetDb -SkipAdCapTest",
+    "smoke:full": "powershell -ExecutionPolicy Bypass -File ./scripts/smoke-test.ps1 -ResetDb"
+  },
+  "dependencies": {
+    "@fastify/jwt": "^9.1.0",
+    "dotenv": "^16.6.1",
+    "fastify": "^5.2.1",
+    "pg": "^8.16.3"
+  }
+}

@@ -1,0 +1,295 @@
+{
+  "info": {
+    "name": "Insolite Points API",
+    "_postman_id": "f6a4c4f5-3cb7-42d3-a866-ec3fd2fa5147",
+    "description": "Collection locale pour tester le parcours JWT + betting + rewards.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/health",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "health"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Auth - Login Player",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "var body = pm.response.json();",
+              "pm.collectionVariables.set('playerToken', body.accessToken);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"player@example.com\",\n  \"password\": \"PlayerDemo123!\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "auth",
+            "login"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Auth - Login Admin",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "var body = pm.response.json();",
+              "pm.collectionVariables.set('adminToken', body.accessToken);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"AdminDemo123!\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "auth",
+            "login"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Markets - List",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "var body = pm.response.json();",
+              "if (body.items && body.items.length > 0) {",
+              "  pm.collectionVariables.set('marketId', body.items[0].id);",
+              "  if (body.items[0].options && body.items[0].options.length > 0) {",
+              "    pm.collectionVariables.set('winnerOptionId', body.items[0].options[0].id);",
+              "  }",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/markets",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "markets"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Bets - Place Bet",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{playerToken}}"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "postman-bet-1"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"marketId\": \"{{marketId}}\",\n  \"optionId\": \"{{winnerOptionId}}\",\n  \"stakePoints\": 20\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/bets",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "bets"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Users - Me",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{playerToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/me",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "me"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Admin - Settle Market",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"winnerOptionId\": \"{{winnerOptionId}}\",\n  \"proofUrl\": \"https://example.test/video-proof\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/admin/markets/{{marketId}}/settle",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "admin",
+            "markets",
+            "{{marketId}}",
+            "settle"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Rewards - List",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/rewards",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "rewards"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Rewards - Redeem",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{playerToken}}"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "postman-redeem-1"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/rewards/33333333-3333-3333-3333-333333333333/redeem",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "rewards",
+            "33333333-3333-3333-3333-333333333333",
+            "redeem"
+          ]
+        }
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000/api/v1"
+    },
+    {
+      "key": "playerToken",
+      "value": ""
+    },
+    {
+      "key": "adminToken",
+      "value": ""
+    },
+    {
+      "key": "marketId",
+      "value": "22222222-2222-2222-2222-222222222222"
+    },
+    {
+      "key": "winnerOptionId",
+      "value": "44444444-4444-4444-4444-444444444441"
+    }
+  ]
+}
