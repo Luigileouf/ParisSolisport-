@@ -410,6 +410,21 @@ paths:
               schema:
                 $ref: "#/components/schemas/Reward"
 
+  /admin/summary:
+    get:
+      summary: Admin dashboard summary
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Aggregated platform metrics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminSummaryResponse"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
 components:
   securitySchemes:
     BearerAuth:
@@ -770,3 +785,79 @@ components:
           type: integer
         lossCount:
           type: integer
+    AdminSummaryResponse:
+      type: object
+      properties:
+        generatedAt:
+          type: string
+          format: date-time
+        users:
+          type: object
+          properties:
+            total:
+              type: integer
+        markets:
+          type: object
+          properties:
+            total:
+              type: integer
+            draft:
+              type: integer
+            open:
+              type: integer
+            locked:
+              type: integer
+            settled:
+              type: integer
+            canceled:
+              type: integer
+        bets:
+          type: object
+          properties:
+            total:
+              type: integer
+            placed:
+              type: integer
+            win:
+              type: integer
+            loss:
+              type: integer
+            void:
+              type: integer
+            totalStakePoints:
+              type: integer
+            totalPayoutPoints:
+              type: integer
+        rewards:
+          type: object
+          properties:
+            catalogTotal:
+              type: integer
+            activeCatalog:
+              type: integer
+            redemptionsTotal:
+              type: integer
+            fulfilledRedemptions:
+              type: integer
+            redeemedPointsTotal:
+              type: integer
+        ads:
+          type: object
+          properties:
+            eventsTotal:
+              type: integer
+            validatedEvents:
+              type: integer
+            pointsGrantedTotal:
+              type: integer
+        points:
+          type: object
+          properties:
+            ledgerEntries:
+              type: integer
+            netDelta:
+              type: integer
+            creditsTotal:
+              type: integer
+            debitsTotal:
+              type: integer

@@ -4,6 +4,124 @@ import { AppError } from "../utils/errors.js";
 import { settleMarket } from "../services/bets-service.js";
 
 export default async function adminRoutes(fastify) {
+  fastify.get("/admin/summary", async (request) => {
+    await requireAdmin(request);
+
+    const [
+      usersResult,
+      marketsResult,
+      betsResult,
+      rewardsResult,
+      redemptionsResult,
+      adsResult,
+      ledgerResult
+    ] = await Promise.all([
+      fastify.pg.query(
+        `SELECT COUNT(*)::int AS total
+         FROM users`
+      ),
+      fastify.pg.query(
+        `SELECT
+           COUNT(*)::int AS total,
+           COUNT(*) FILTER (WHERE status = 'DRAFT')::int AS draft,
+           COUNT(*) FILTER (WHERE status = 'OPEN')::int AS open,
+           COUNT(*) FILTER (WHERE status = 'LOCKED')::int AS locked,
+           COUNT(*) FILTER (WHERE status = 'SETTLED')::int AS settled,
+           COUNT(*) FILTER (WHERE status = 'CANCELED')::int AS canceled
+         FROM markets`
+      ),
+      fastify.pg.query(
+        `SELECT
+           COUNT(*)::int AS total,
+           COUNT(*) FILTER (WHERE status = 'PLACED')::int AS placed,
+           COUNT(*) FILTER (WHERE status = 'WIN')::int AS win,
+           COUNT(*) FILTER (WHERE status = 'LOSS')::int AS loss,
+           COUNT(*) FILTER (WHERE status = 'VOID')::int AS void,
+           COALESCE(SUM(stake_points), 0)::int AS total_stake_points,
+           COALESCE(SUM(payout_points), 0)::int AS total_payout_points
+         FROM bets`
+      ),
+      fastify.pg.query(
+        `SELECT
+           COUNT(*)::int AS catalog_total,
+           COUNT(*) FILTER (WHERE is_active = true)::int AS active_catalog
+         FROM partner_rewards`
+      ),
+      fastify.pg.query(
+        `SELECT
+           COUNT(*)::int AS total,
+           COUNT(*) FILTER (WHERE status = 'FULFILLED')::int AS fulfilled,
+           COALESCE(SUM(points_spent), 0)::int AS total_points_spent
+         FROM reward_redemptions`
+      ),
+      fastify.pg.query(
+        `SELECT
+           COUNT(*)::int AS total,
+           COUNT(*) FILTER (WHERE validated = true)::int AS validated,
+           COALESCE(SUM(points_granted), 0)::int AS points_granted_total
+         FROM ad_reward_events`
+      ),
+      fastify.pg.query(
+        `SELECT
+           COUNT(*)::int AS entries_total,
+           COALESCE(SUM(points_delta), 0)::int AS net_delta,
+           COALESCE(SUM(CASE WHEN points_delta > 0 THEN points_delta ELSE 0 END), 0)::int AS credits_total,
+           COALESCE(SUM(CASE WHEN points_delta < 0 THEN -points_delta ELSE 0 END), 0)::int AS debits_total
+         FROM point_ledger`
+      )
+    ]);
+
+    const users = usersResult.rows[0];
+    const markets = marketsResult.rows[0];
+    const bets = betsResult.rows[0];
+    const rewards = rewardsResult.rows[0];
+    const redemptions = redemptionsResult.rows[0];
+    const ads = adsResult.rows[0];
+    const ledger = ledgerResult.rows[0];
+
+    return {
+      generatedAt: new Date().toISOString(),
+      users: {
+        total: users.total
+      },
+      markets: {
+        total: markets.total,
+        draft: markets.draft,
+        open: markets.open,
+        locked: markets.locked,
+        settled: markets.settled,
+        canceled: markets.canceled
+      },
+      bets: {
+        total: bets.total,
+        placed: bets.placed,
+        win: bets.win,
+        loss: bets.loss,
+        void: bets.void,
+        totalStakePoints: bets.total_stake_points,
+        totalPayoutPoints: bets.total_payout_points
+      },
+      rewards: {
+        catalogTotal: rewards.catalog_total,
+        activeCatalog: rewards.active_catalog,
+        redemptionsTotal: redemptions.total,
+        fulfilledRedemptions: redemptions.fulfilled,
+        redeemedPointsTotal: redemptions.total_points_spent
+      },
+      ads: {
+        eventsTotal: ads.total,
+        validatedEvents: ads.validated,
+        pointsGrantedTotal: ads.points_granted_total
+      },
+      points: {
+        ledgerEntries: ledger.entries_total,
+        netDelta: ledger.net_delta,
+        creditsTotal: ledger.credits_total,
+        debitsTotal: ledger.debits_total
+      }
+    };
+  });
+
   fastify.post("/admin/markets", async (request, reply) => {
     const admin = await requireAdmin(request);
     const { title, sport, eventRef = null, openAt, closeAt, options = [] } = request.body ?? {};
