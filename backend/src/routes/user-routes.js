@@ -2,6 +2,11 @@ import { pool } from "../db.js";
 import { getAuthUser } from "../utils/auth.js";
 import { AppError } from "../utils/errors.js";
 
+function getSafeLimit(rawLimit, fallback = 50) {
+  const limit = Number.parseInt(rawLimit ?? String(fallback), 10);
+  return Number.isNaN(limit) ? fallback : Math.max(1, Math.min(limit, 100));
+}
+
 export default async function userRoutes(fastify) {
   fastify.get("/me", async (request) => {
     const user = await getAuthUser(request);
@@ -27,8 +32,7 @@ export default async function userRoutes(fastify) {
 
   fastify.get("/me/ledger", async (request) => {
     const user = await getAuthUser(request);
-    const limit = Number.parseInt(request.query.limit ?? "50", 10);
-    const safeLimit = Number.isNaN(limit) ? 50 : Math.max(1, Math.min(limit, 100));
+    const safeLimit = getSafeLimit(request.query.limit, 50);
 
     const result = await pool.query(
       `SELECT id, entry_type, points_delta, balance_after, ref_type, ref_id, created_at
@@ -47,6 +51,75 @@ export default async function userRoutes(fastify) {
         balanceAfter: row.balance_after,
         refType: row.ref_type,
         refId: row.ref_id,
+        createdAt: row.created_at
+      }))
+    };
+  });
+
+  fastify.get("/me/history", async (request) => {
+    const user = await getAuthUser(request);
+    const safeLimit = getSafeLimit(request.query.limit, 20);
+
+    const [betsResult, ledgerResult, redemptionsResult] = await Promise.all([
+      pool.query(
+        `SELECT b.id, b.market_id, b.option_id, b.stake_points, b.odds_decimal, b.payout_points, b.status, b.placed_at, b.settled_at
+         FROM bets b
+         WHERE b.user_id = $1
+         ORDER BY b.placed_at DESC
+         LIMIT $2`,
+        [user.id, safeLimit]
+      ),
+      pool.query(
+        `SELECT id, entry_type, points_delta, balance_after, ref_type, ref_id, created_at
+         FROM point_ledger
+         WHERE user_id = $1
+         ORDER BY created_at DESC
+         LIMIT $2`,
+        [user.id, safeLimit]
+      ),
+      pool.query(
+        `SELECT rr.id, rr.reward_id, rr.points_spent, rr.code, rr.status, rr.fulfilled_at, rr.created_at,
+                pr.partner_name, pr.title
+         FROM reward_redemptions rr
+         LEFT JOIN partner_rewards pr ON pr.id = rr.reward_id
+         WHERE rr.user_id = $1
+         ORDER BY rr.created_at DESC
+         LIMIT $2`,
+        [user.id, safeLimit]
+      )
+    ]);
+
+    return {
+      limit: safeLimit,
+      bets: betsResult.rows.map((row) => ({
+        id: row.id,
+        marketId: row.market_id,
+        optionId: row.option_id,
+        stakePoints: row.stake_points,
+        oddsDecimal: Number(row.odds_decimal),
+        payoutPoints: row.payout_points,
+        status: row.status,
+        placedAt: row.placed_at,
+        settledAt: row.settled_at
+      })),
+      ledger: ledgerResult.rows.map((row) => ({
+        id: row.id,
+        entryType: row.entry_type,
+        pointsDelta: row.points_delta,
+        balanceAfter: row.balance_after,
+        refType: row.ref_type,
+        refId: row.ref_id,
+        createdAt: row.created_at
+      })),
+      redemptions: redemptionsResult.rows.map((row) => ({
+        id: row.id,
+        rewardId: row.reward_id,
+        partnerName: row.partner_name,
+        rewardTitle: row.title,
+        pointsSpent: row.points_spent,
+        code: row.code,
+        status: row.status,
+        fulfilledAt: row.fulfilled_at,
         createdAt: row.created_at
       }))
     };

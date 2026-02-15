@@ -82,6 +82,29 @@ paths:
                     items:
                       $ref: "#/components/schemas/LedgerItem"
 
+  /me/history:
+    get:
+      summary: Current user aggregated history
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        "200":
+          description: Aggregated user history
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MeHistoryResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
   /me/bets:
     get:
       summary: Current user bets
@@ -498,6 +521,53 @@ components:
         createdAt:
           type: string
           format: date-time
+    RedemptionHistoryItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        rewardId:
+          type: string
+          format: uuid
+        partnerName:
+          type: string
+          nullable: true
+        rewardTitle:
+          type: string
+          nullable: true
+        pointsSpent:
+          type: integer
+        code:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [REQUESTED, FULFILLED, REJECTED, CANCELED]
+        fulfilledAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+    MeHistoryResponse:
+      type: object
+      properties:
+        limit:
+          type: integer
+        bets:
+          type: array
+          items:
+            $ref: "#/components/schemas/Bet"
+        ledger:
+          type: array
+          items:
+            $ref: "#/components/schemas/LedgerItem"
+        redemptions:
+          type: array
+          items:
+            $ref: "#/components/schemas/RedemptionHistoryItem"
     MarketOption:
       type: object
       properties:

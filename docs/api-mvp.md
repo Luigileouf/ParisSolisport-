@@ -68,6 +68,53 @@ Response:
 }
 ```
 
+### GET /me/history?limit=20
+Retourne un historique agrege du joueur.
+
+Response:
+```json
+{
+  "limit": 20,
+  "bets": [
+    {
+      "id": "uuid",
+      "marketId": "uuid",
+      "optionId": "uuid",
+      "stakePoints": 20,
+      "oddsDecimal": 2,
+      "payoutPoints": 0,
+      "status": "PLACED",
+      "placedAt": "2026-02-14T10:00:00Z",
+      "settledAt": null
+    }
+  ],
+  "ledger": [
+    {
+      "id": "uuid",
+      "entryType": "bet_stake",
+      "pointsDelta": -20,
+      "balanceAfter": 80,
+      "refType": "bet",
+      "refId": "uuid",
+      "createdAt": "2026-02-14T10:00:00Z"
+    }
+  ],
+  "redemptions": [
+    {
+      "id": "uuid",
+      "rewardId": "uuid",
+      "partnerName": "Partenaire Demo",
+      "rewardTitle": "Reduction 10%",
+      "pointsSpent": 80,
+      "code": "REWARD-ABC123",
+      "status": "FULFILLED",
+      "fulfilledAt": "2026-02-14T10:05:00Z",
+      "createdAt": "2026-02-14T10:05:00Z"
+    }
+  ]
+}
+```
+
 ## 3) Markets
 
 ### GET /markets?status=OPEN
