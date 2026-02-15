@@ -249,6 +249,34 @@ Behavior:
 ### POST /admin/rewards
 Create partner reward item.
 
+### GET /admin/markets?status=OPEN&sport=football&limit=50&offset=0
+Retourne la liste paginee des marches (vue admin) avec filtres optionnels.
+
+Response:
+```json
+{
+  "limit": 50,
+  "offset": 0,
+  "total": 2,
+  "items": [
+    {
+      "id": "uuid",
+      "title": "Quelle sera la couleur du short du capitaine ?",
+      "sport": "football",
+      "eventRef": "MATCH-DEMO-001",
+      "openAt": "2026-02-15T09:00:00Z",
+      "closeAt": "2026-02-15T13:00:00Z",
+      "settleAt": null,
+      "status": "OPEN",
+      "createdAt": "2026-02-15T08:59:00Z",
+      "updatedAt": "2026-02-15T08:59:00Z",
+      "optionsCount": 3,
+      "betsCount": 12
+    }
+  ]
+}
+```
+
 ### GET /admin/summary
 Retourne des metriques globales pour dashboard admin.
 

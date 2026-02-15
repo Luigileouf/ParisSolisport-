@@ -3,6 +3,16 @@ import { requireAdmin } from "../utils/auth.js";
 import { AppError } from "../utils/errors.js";
 import { settleMarket } from "../services/bets-service.js";
 
+function getSafeLimit(rawLimit, fallback = 50) {
+  const limit = Number.parseInt(rawLimit ?? String(fallback), 10);
+  return Number.isNaN(limit) ? fallback : Math.max(1, Math.min(limit, 100));
+}
+
+function getSafeOffset(rawOffset, fallback = 0) {
+  const offset = Number.parseInt(rawOffset ?? String(fallback), 10);
+  return Number.isNaN(offset) ? fallback : Math.max(0, offset);
+}
+
 export default async function adminRoutes(fastify) {
   fastify.get("/admin/summary", async (request) => {
     await requireAdmin(request);
@@ -119,6 +129,97 @@ export default async function adminRoutes(fastify) {
         creditsTotal: ledger.credits_total,
         debitsTotal: ledger.debits_total
       }
+    };
+  });
+
+  fastify.get("/admin/markets", async (request) => {
+    await requireAdmin(request);
+
+    const query = request.query ?? {};
+    const { status, sport } = query;
+    const safeLimit = getSafeLimit(query.limit, 50);
+    const safeOffset = getSafeOffset(query.offset, 0);
+
+    const allowedStatuses = new Set(["DRAFT", "OPEN", "LOCKED", "SETTLED", "CANCELED"]);
+    if (status && !allowedStatuses.has(status)) {
+      throw new AppError("Invalid status filter", 400, "INVALID_STATUS");
+    }
+
+    const whereClauses = [];
+    const whereValues = [];
+
+    if (status) {
+      whereValues.push(status);
+      whereClauses.push(`m.status = $${whereValues.length}`);
+    }
+
+    if (sport) {
+      whereValues.push(sport);
+      whereClauses.push(`LOWER(m.sport) = LOWER($${whereValues.length})`);
+    }
+
+    const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(" AND ")}` : "";
+    const limitParam = `$${whereValues.length + 1}`;
+    const offsetParam = `$${whereValues.length + 2}`;
+
+    const [itemsResult, totalResult] = await Promise.all([
+      fastify.pg.query(
+        `SELECT
+           m.id,
+           m.title,
+           m.sport,
+           m.event_ref,
+           m.open_at,
+           m.close_at,
+           m.settle_at,
+           m.status,
+           m.created_at,
+           m.updated_at,
+           COALESCE(opt.options_count, 0)::int AS options_count,
+           COALESCE(bt.bets_count, 0)::int AS bets_count
+         FROM markets m
+         LEFT JOIN (
+           SELECT market_id, COUNT(*)::int AS options_count
+           FROM market_options
+           GROUP BY market_id
+         ) opt ON opt.market_id = m.id
+         LEFT JOIN (
+           SELECT market_id, COUNT(*)::int AS bets_count
+           FROM bets
+           GROUP BY market_id
+         ) bt ON bt.market_id = m.id
+         ${whereSql}
+         ORDER BY m.open_at DESC, m.created_at DESC
+         LIMIT ${limitParam}
+         OFFSET ${offsetParam}`,
+        [...whereValues, safeLimit, safeOffset]
+      ),
+      fastify.pg.query(
+        `SELECT COUNT(*)::int AS total
+         FROM markets m
+         ${whereSql}`,
+        whereValues
+      )
+    ]);
+
+    return {
+      limit: safeLimit,
+      offset: safeOffset,
+      total: totalResult.rows[0].total,
+      items: itemsResult.rows.map((row) => ({
+        id: row.id,
+        title: row.title,
+        sport: row.sport,
+        eventRef: row.event_ref,
+        openAt: row.open_at,
+        closeAt: row.close_at,
+        settleAt: row.settle_at,
+        status: row.status,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+        optionsCount: row.options_count,
+        betsCount: row.bets_count
+      }))
     };
   });
 

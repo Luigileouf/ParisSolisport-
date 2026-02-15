@@ -283,6 +283,48 @@ paths:
                 $ref: "#/components/schemas/ErrorEnvelope"
 
   /admin/markets:
+    get:
+      summary: List markets for admin dashboard
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [DRAFT, OPEN, LOCKED, SETTLED, CANCELED]
+        - in: query
+          name: sport
+          schema:
+            type: string
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+        - in: query
+          name: offset
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        "200":
+          description: Paginated admin market list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminMarketsListResponse"
+        "400":
+          description: Invalid filter
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          $ref: "#/components/responses/Forbidden"
     post:
       summary: Create market
       security:
@@ -785,6 +827,55 @@ components:
           type: integer
         lossCount:
           type: integer
+    AdminMarketListItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        sport:
+          type: string
+        eventRef:
+          type: string
+          nullable: true
+        openAt:
+          type: string
+          format: date-time
+        closeAt:
+          type: string
+          format: date-time
+        settleAt:
+          type: string
+          format: date-time
+          nullable: true
+        status:
+          type: string
+          enum: [DRAFT, OPEN, LOCKED, SETTLED, CANCELED]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        optionsCount:
+          type: integer
+        betsCount:
+          type: integer
+    AdminMarketsListResponse:
+      type: object
+      properties:
+        limit:
+          type: integer
+        offset:
+          type: integer
+        total:
+          type: integer
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminMarketListItem"
     AdminSummaryResponse:
       type: object
       properties:

@@ -277,6 +277,46 @@
       }
     },
     {
+      "name": "Admin - Markets List",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/admin/markets?status=OPEN&sport=football&limit=20&offset=0",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "admin",
+            "markets"
+          ],
+          "query": [
+            {
+              "key": "status",
+              "value": "OPEN"
+            },
+            {
+              "key": "sport",
+              "value": "football"
+            },
+            {
+              "key": "limit",
+              "value": "20"
+            },
+            {
+              "key": "offset",
+              "value": "0"
+            }
+          ]
+        }
+      }
+    },
+    {
       "name": "Rewards - List",
       "request": {
         "method": "GET",

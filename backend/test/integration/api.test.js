@@ -12,6 +12,8 @@ const IDS = {
   playerB: "12121212-1212-1212-1212-121212121212",
   admin: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
   market: "22222222-2222-2222-2222-222222222222",
+  marketOpen2: "23232323-2323-2323-2323-232323232323",
+  marketLocked: "24242424-2424-2424-2424-242424242424",
   optionRed: "44444444-4444-4444-4444-444444444441",
   optionBlue: "44444444-4444-4444-4444-444444444442",
   optionBlack: "44444444-4444-4444-4444-444444444443",
@@ -587,4 +589,44 @@ test("12) admin summary returns global metrics and point volumes", async () => {
   assert.equal(body.points.netDelta, 1120);
   assert.equal(body.points.creditsTotal, 1220);
   assert.equal(body.points.debitsTotal, 100);
+});
+
+test("13) admin markets list supports filters and pagination", async () => {
+  await pool.query(
+    `INSERT INTO markets
+      (id, title, sport, event_ref, open_at, close_at, status, created_by)
+     VALUES
+      ($1, 'Deuxieme marche open football', 'football', 'MATCH-DEMO-OPEN-2',
+       now() - interval '30 minutes', now() + interval '2 hours', 'OPEN', $3),
+      ($2, 'Marche lock basketball', 'basketball', 'MATCH-DEMO-LOCK-1',
+       now() - interval '2 hours', now() + interval '1 hour', 'LOCKED', $3)`,
+    [IDS.marketOpen2, IDS.marketLocked, IDS.admin]
+  );
+
+  const response = await app.inject({
+    method: "GET",
+    url: "/api/v1/admin/markets?status=OPEN&sport=football&limit=1&offset=1",
+    headers: adminHeaders()
+  });
+
+  assert.equal(response.statusCode, 200);
+  const body = response.json();
+
+  assert.equal(body.limit, 1);
+  assert.equal(body.offset, 1);
+  assert.equal(body.total, 2);
+  assert.equal(body.items.length, 1);
+  assert.equal(body.items[0].status, "OPEN");
+  assert.equal(body.items[0].sport, "football");
+  assert.equal(typeof body.items[0].optionsCount, "number");
+  assert.equal(typeof body.items[0].betsCount, "number");
+
+  const invalid = await app.inject({
+    method: "GET",
+    url: "/api/v1/admin/markets?status=INVALID",
+    headers: adminHeaders()
+  });
+
+  assert.equal(invalid.statusCode, 400);
+  assert.equal(invalid.json().error.code, "INVALID_STATUS");
 });
