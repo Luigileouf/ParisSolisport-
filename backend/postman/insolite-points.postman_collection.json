@@ -255,6 +255,28 @@
       }
     },
     {
+      "name": "Admin - Summary",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/admin/summary",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "admin",
+            "summary"
+          ]
+        }
+      }
+    },
+    {
       "name": "Rewards - List",
       "request": {
         "method": "GET",

@@ -249,6 +249,52 @@ Behavior:
 ### POST /admin/rewards
 Create partner reward item.
 
+### GET /admin/summary
+Retourne des metriques globales pour dashboard admin.
+
+Response:
+```json
+{
+  "generatedAt": "2026-02-15T10:00:00Z",
+  "users": { "total": 3 },
+  "markets": {
+    "total": 1,
+    "draft": 0,
+    "open": 1,
+    "locked": 0,
+    "settled": 0,
+    "canceled": 0
+  },
+  "bets": {
+    "total": 1,
+    "placed": 1,
+    "win": 0,
+    "loss": 0,
+    "void": 0,
+    "totalStakePoints": 20,
+    "totalPayoutPoints": 0
+  },
+  "rewards": {
+    "catalogTotal": 1,
+    "activeCatalog": 1,
+    "redemptionsTotal": 1,
+    "fulfilledRedemptions": 1,
+    "redeemedPointsTotal": 80
+  },
+  "ads": {
+    "eventsTotal": 1,
+    "validatedEvents": 1,
+    "pointsGrantedTotal": 20
+  },
+  "points": {
+    "ledgerEntries": 6,
+    "netDelta": 1120,
+    "creditsTotal": 1220,
+    "debitsTotal": 100
+  }
+}
+```
+
 ## 8) Error model (uniform)
 ```json
 {

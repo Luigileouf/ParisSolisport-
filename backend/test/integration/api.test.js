@@ -511,3 +511,80 @@ test("11) me history returns bets, ledger and redemptions with safe limit", asyn
   assert.equal(entryTypes.has("bet_stake"), true);
   assert.equal(entryTypes.has("reward_redeem"), true);
 });
+
+test("12) admin summary returns global metrics and point volumes", async () => {
+  const bet = await app.inject({
+    method: "POST",
+    url: "/api/v1/bets",
+    headers: {
+      ...playerHeaders(),
+      "idempotency-key": "summary-bet-1"
+    },
+    payload: {
+      marketId: IDS.market,
+      optionId: IDS.optionRed,
+      stakePoints: 20
+    }
+  });
+  assert.equal(bet.statusCode, 201);
+
+  const redeem = await app.inject({
+    method: "POST",
+    url: `/api/v1/rewards/${IDS.reward}/redeem`,
+    headers: {
+      ...playerHeaders(),
+      "idempotency-key": "summary-redeem-1"
+    },
+    payload: {}
+  });
+  assert.equal(redeem.statusCode, 201);
+
+  const ad = await app.inject({
+    method: "POST",
+    url: "/api/v1/ads/reward-callback",
+    payload: {
+      network: "demo_network",
+      networkEventId: "summary-ad-1",
+      userExternalId: IDS.playerA,
+      watched: true,
+      signature: "signed"
+    }
+  });
+  assert.equal(ad.statusCode, 200);
+
+  const summary = await app.inject({
+    method: "GET",
+    url: "/api/v1/admin/summary",
+    headers: adminHeaders()
+  });
+
+  assert.equal(summary.statusCode, 200);
+  const body = summary.json();
+
+  assert.ok(body.generatedAt);
+
+  assert.equal(body.users.total, 3);
+
+  assert.equal(body.markets.total, 1);
+  assert.equal(body.markets.open, 1);
+
+  assert.equal(body.bets.total, 1);
+  assert.equal(body.bets.placed, 1);
+  assert.equal(body.bets.totalStakePoints, 20);
+  assert.equal(body.bets.totalPayoutPoints, 0);
+
+  assert.equal(body.rewards.catalogTotal, 1);
+  assert.equal(body.rewards.activeCatalog, 1);
+  assert.equal(body.rewards.redemptionsTotal, 1);
+  assert.equal(body.rewards.fulfilledRedemptions, 1);
+  assert.equal(body.rewards.redeemedPointsTotal, 80);
+
+  assert.equal(body.ads.eventsTotal, 1);
+  assert.equal(body.ads.validatedEvents, 1);
+  assert.equal(body.ads.pointsGrantedTotal, 20);
+
+  assert.equal(body.points.ledgerEntries, 6);
+  assert.equal(body.points.netDelta, 1120);
+  assert.equal(body.points.creditsTotal, 1220);
+  assert.equal(body.points.debitsTotal, 100);
+});
