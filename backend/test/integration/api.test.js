@@ -459,3 +459,55 @@ test("10) admin routes reject non-admin user", async () => {
   assert.equal(response.statusCode, 403);
   assert.equal(response.json().error.code, "FORBIDDEN");
 });
+
+test("11) me history returns bets, ledger and redemptions with safe limit", async () => {
+  const bet = await app.inject({
+    method: "POST",
+    url: "/api/v1/bets",
+    headers: {
+      ...playerHeaders(),
+      "idempotency-key": "history-bet-1"
+    },
+    payload: {
+      marketId: IDS.market,
+      optionId: IDS.optionRed,
+      stakePoints: 20
+    }
+  });
+  assert.equal(bet.statusCode, 201);
+
+  const redeem = await app.inject({
+    method: "POST",
+    url: `/api/v1/rewards/${IDS.reward}/redeem`,
+    headers: {
+      ...playerHeaders(),
+      "idempotency-key": "history-redeem-1"
+    },
+    payload: {}
+  });
+  assert.equal(redeem.statusCode, 201);
+
+  const history = await app.inject({
+    method: "GET",
+    url: "/api/v1/me/history?limit=2",
+    headers: playerHeaders()
+  });
+
+  assert.equal(history.statusCode, 200);
+  const body = history.json();
+  assert.equal(body.limit, 2);
+
+  assert.equal(body.bets.length, 1);
+  assert.equal(body.bets[0].status, "PLACED");
+  assert.equal(body.bets[0].marketId, IDS.market);
+
+  assert.equal(body.redemptions.length, 1);
+  assert.equal(body.redemptions[0].rewardId, IDS.reward);
+  assert.equal(body.redemptions[0].status, "FULFILLED");
+  assert.equal(body.redemptions[0].partnerName, "Partenaire Demo");
+
+  assert.equal(body.ledger.length, 2);
+  const entryTypes = new Set(body.ledger.map((entry) => entry.entryType));
+  assert.equal(entryTypes.has("bet_stake"), true);
+  assert.equal(entryTypes.has("reward_redeem"), true);
+});

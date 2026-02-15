@@ -195,6 +195,34 @@
       }
     },
     {
+      "name": "Users - History",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{playerToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/me/history?limit=20",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "me",
+            "history"
+          ],
+          "query": [
+            {
+              "key": "limit",
+              "value": "20"
+            }
+          ]
+        }
+      }
+    },
+    {
       "name": "Admin - Settle Market",
       "request": {
         "method": "POST",
